@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <meta charset="UTF-8">
+    <title>Home</title>
+</head>
+<body>
+
+<h2>로그인 성공 🎉</h2>
+
+<hr>
+
+<h3>사용자 정보</h3>
+<p><strong>이름:</strong> <span th:text="${name}"></span></p>
+<p><strong>이메일:</strong> <span th:text="${email}"></span></p>
+
+<hr>
+
+<h3>리뷰 작성</h3>
+
+<form id="reviewForm">
+    <input type="text" name="comment" placeholder="리뷰를 입력하세요">
+    <button type="submit">작성</button>
+</form>
+
+<p id="result"></p>
+
+<hr>
+
+<h3>내 리뷰 목록</h3>
+
+<button onclick="loadReviews()">리뷰 불러오기</button>
+
+<ul id="reviewList"></ul>
+
+<hr>
+
+<form th:action="@{/logout}" method="post">
+    <button type="submit">로그아웃</button>
+</form>
+
+<script>
+
+    const token = document.querySelector('meta[name="_csrf"]').content;
+    const header = document.querySelector('meta[name="_csrf_header"]').content;
+
+    // 리뷰 작성
+    document.getElementById("reviewForm").addEventListener("submit", function (e) {
+        e.preventDefault();
+
+        const comment = this.comment.value;
+
+        fetch("/review", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                [header]: token
+            },
+            body: new URLSearchParams({ comment: comment })
+        })
+            .then(response => response.text())
+            .then(data => {
+                document.getElementById("result").innerText = data;
+                this.comment.value = "";
+            });
+    });
+
+    // 리뷰 조회
+    function loadReviews() {
+        fetch("/review", {
+            method: "GET",
+            headers: {
+                [header]: token
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                const list = document.getElementById("reviewList");
+                list.innerHTML = "";
+
+                data.forEach(comment => {
+                    const li = document.createElement("li");
+                    li.innerText = comment;
+                    list.appendChild(li);
+                });
+            });
+    }
+
+</script>
+
+</body>
+</html>
