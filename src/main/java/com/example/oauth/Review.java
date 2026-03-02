@@ -51,6 +51,11 @@ public class Review {
         this.updatedAt = LocalDateTime.now();
     }
 
+    public void update(String title, String comment) {
+        this.title = title;
+        this.comment = comment;
+    }
+
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();

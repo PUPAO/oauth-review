@@ -12,16 +12,11 @@
 
 <hr>
 
-<h3>사용자 정보</h3>
-<p><strong>이름:</strong> <span th:text="${name}"></span></p>
-<p><strong>이메일:</strong> <span th:text="${email}"></span></p>
-
-<hr>
-
 <h3>리뷰 작성</h3>
 
 <form id="reviewForm">
-    <input type="text" name="comment" placeholder="리뷰를 입력하세요">
+    <input type="text" name="title" placeholder="제목 입력" required>
+    <input type="text" name="comment" placeholder="리뷰를 입력하세요" required>
     <button type="submit">작성</button>
 </form>
 
@@ -46,11 +41,19 @@
     const token = document.querySelector('meta[name="_csrf"]').content;
     const header = document.querySelector('meta[name="_csrf_header"]').content;
 
+    // =============================
     // 리뷰 작성
+    // =============================
     document.getElementById("reviewForm").addEventListener("submit", function (e) {
         e.preventDefault();
 
-        const comment = this.comment.value;
+        const title = this.title.value.trim();
+        const comment = this.comment.value.trim();
+
+        if (!title || !comment) {
+            alert("제목과 내용을 입력하세요.");
+            return;
+        }
 
         fetch("/review", {
             method: "POST",
@@ -58,34 +61,100 @@
                 "Content-Type": "application/x-www-form-urlencoded",
                 [header]: token
             },
-            body: new URLSearchParams({ comment: comment })
+            body: new URLSearchParams({ title, comment })
         })
-            .then(response => response.text())
+            .then(res => res.text())
             .then(data => {
                 document.getElementById("result").innerText = data;
-                this.comment.value = "";
+                this.reset();
+                loadReviews();
             });
     });
 
+    // =============================
     // 리뷰 조회
+    // =============================
     function loadReviews() {
         fetch("/review", {
-            method: "GET",
             headers: {
                 [header]: token
             }
         })
-            .then(response => response.json())
+            .then(res => res.json())
             .then(data => {
                 const list = document.getElementById("reviewList");
                 list.innerHTML = "";
 
-                data.forEach(comment => {
+                data.forEach(review => {
                     const li = document.createElement("li");
-                    li.innerText = comment;
+
+                    li.innerHTML = `
+                        <strong id="title-${review.id}">${review.title}</strong> -
+                        <span id="comment-${review.id}">${review.comment}</span>
+                        <button onclick="editReview(${review.id})">수정</button>
+                        <button onclick="deleteReview(${review.id})">삭제</button>
+                    `;
+
                     list.appendChild(li);
                 });
-            });
+            })
+            .catch(err => console.error("리뷰 로딩 오류:", err));
+    }
+
+    // =============================
+    // 리뷰 수정
+    // =============================
+    function editReview(id) {
+
+        const titleElement = document.getElementById(`title-${id}`);
+        const commentElement = document.getElementById(`comment-${id}`);
+
+        if (!titleElement || !commentElement) {
+            console.error("DOM 요소를 찾을 수 없습니다.");
+            return;
+        }
+
+        const currentTitle = titleElement.innerText;
+        const currentComment = commentElement.innerText;
+
+        const newTitle = prompt("수정할 제목을 입력하세요:", currentTitle);
+        if (newTitle === null) return;
+
+        const newComment = prompt("수정할 내용을 입력하세요:", currentComment);
+        if (newComment === null) return;
+
+        fetch(`/review/${id}`, {
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                [header]: token
+            },
+            body: new URLSearchParams({
+                title: newTitle.trim(),
+                comment: newComment.trim()
+            })
+        })
+            .then(res => res.text())
+            .then(() => loadReviews())
+            .catch(err => console.error("수정 오류:", err));
+    }
+
+    // =============================
+    // 리뷰 삭제
+    // =============================
+    function deleteReview(id) {
+
+        if (!confirm("정말 삭제하시겠습니까?")) return;
+
+        fetch(`/review/${id}`, {
+            method: "DELETE",
+            headers: {
+                [header]: token
+            }
+        })
+            .then(res => res.text())
+            .then(() => loadReviews())
+            .catch(err => console.error("삭제 오류:", err));
     }
 
 </script>

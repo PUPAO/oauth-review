@@ -1,13 +1,11 @@
 package com.example.oauth;
 
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.core.user.OAuth2User;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -20,10 +18,10 @@ public class ReviewController {
 
     // 리뷰 작성
     @PostMapping
-    public String review(String comment, @AuthenticationPrincipal OAuth2User user) {
+    public String createReview(@RequestParam String title, @RequestParam String comment, @AuthenticationPrincipal OAuth2User user) {
         Review review = Review.create(
                 user.getAttribute("email"),
-                "content",
+                title,
                 comment);
 
         reviewRepository.save(review);
@@ -33,11 +31,57 @@ public class ReviewController {
 
     // 리뷰 보기
     @GetMapping
-    public List<String> review(@AuthenticationPrincipal OAuth2User user) {
-        List<Review> reviews = reviewRepository.findByEmail(Objects.requireNonNull(user.getAttribute("email")).toString());
+    public List<Review> getReviews(@AuthenticationPrincipal OAuth2User user) {
 
-        return reviews.stream()
-                .map(Review::getComment)   // content 필드만 추출
-                .toList();
+        String email = Objects.requireNonNull(user.getAttribute("email"));
+        List<Review> reviews = reviewRepository.findByEmail(email);
+
+        return reviews;
+    }
+
+    // 리뷰 수정
+    @Transactional
+    @PatchMapping("/{id}")
+    public String updateReview(@PathVariable Long id,
+                               @RequestParam String title,
+                               @RequestParam String comment,
+                               @AuthenticationPrincipal OAuth2User user) {
+
+        System.out.println("id = " + id + ", title = " + title + ", comment = " + comment + ", user = " + user);
+
+        String email = Objects.requireNonNull(user.getAttribute("email"));
+
+        Review review = reviewRepository.findById(id).orElseThrow();
+
+        if (!review.getEmail().equals(email)) {
+            throw new RuntimeException("권한 없음");
+        }
+
+        if (title == null)
+            title = review.getTitle();
+
+        if (comment == null)
+            comment = review.getComment();
+
+        review.update(title, comment);
+
+        return "success";
+    }
+
+    // 리뷰 삭제
+    @DeleteMapping("/{id}")
+    public String deleteReview(@PathVariable Long id,
+                               @AuthenticationPrincipal OAuth2User user) {
+
+        String email = Objects.requireNonNull(user.getAttribute("email"));
+        Review review = reviewRepository.findById(id).orElseThrow();
+
+        if (!review.getEmail().equals(email)) {
+            throw new RuntimeException("권한 없음");
+        }
+
+        reviewRepository.delete(review);
+
+        return "success";
     }
 }
